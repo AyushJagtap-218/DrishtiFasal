@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'screens/onboarding_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:drishti_fasal/screens/onboarding_screen.dart';
 
-void main() {
+Future<void> main() async {
+  await dotenv.load(fileName: ".env"); 
   runApp(const DrishtiFasalApp());
 }
 
@@ -12,11 +14,7 @@ class DrishtiFasalApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'DrishtiFasal',
-      theme: ThemeData(
-        primarySwatch: Colors.green,
-      ),
-      home: const OnboardingScreen(),
+      home: OnboardingScreen(),
     );
   }
 }
