@@ -54,16 +54,57 @@ class _ImageWeatherInputScreenState extends State<ImageWeatherInputScreen> {
     });
   }
 
-  Future pickImage() async {
-    final pickedFile = await picker.pickImage(
-      source: ImageSource.gallery,
-    );
+  // 📁 Gallery
+  Future pickFromGallery() async {
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
     if (pickedFile != null) {
       setState(() {
         selectedImage = File(pickedFile.path);
       });
     }
+  }
+
+  // 📷 Camera
+  Future pickFromCamera() async {
+    final pickedFile = await picker.pickImage(source: ImageSource.camera);
+
+    if (pickedFile != null) {
+      setState(() {
+        selectedImage = File(pickedFile.path);
+      });
+    }
+  }
+
+  // 🔥 Bottom Sheet
+  void showImageSourceSelector() {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo),
+                title: const Text("Gallery"),
+                onTap: () {
+                  Navigator.pop(context);
+                  pickFromGallery();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text("Camera"),
+                onTap: () {
+                  Navigator.pop(context);
+                  pickFromCamera();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void predictDisease() {
@@ -85,11 +126,7 @@ class _ImageWeatherInputScreenState extends State<ImageWeatherInputScreen> {
     );
   }
 
-  Widget weatherField(
-      IconData icon,
-      String label,
-      TextEditingController controller) {
-
+  Widget weatherField(IconData icon, String label, TextEditingController controller) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 18),
       child: TextField(
@@ -110,9 +147,8 @@ class _ImageWeatherInputScreenState extends State<ImageWeatherInputScreen> {
   Widget build(BuildContext context) {
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Smart Prediction"),
-      ),
+      appBar: AppBar(title: const Text("Smart Prediction")),
+
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
@@ -121,7 +157,7 @@ class _ImageWeatherInputScreenState extends State<ImageWeatherInputScreen> {
                 children: [
 
                   GestureDetector(
-                    onTap: pickImage,
+                    onTap: showImageSourceSelector, // 🔥 UPDATED
                     child: Container(
                       height: 220,
                       width: double.infinity,
@@ -140,10 +176,7 @@ class _ImageWeatherInputScreenState extends State<ImageWeatherInputScreen> {
                             )
                           : ClipRRect(
                               borderRadius: BorderRadius.circular(15),
-                              child: Image.file(
-                                selectedImage!,
-                                fit: BoxFit.cover,
-                              ),
+                              child: Image.file(selectedImage!, fit: BoxFit.cover),
                             ),
                     ),
                   ),
@@ -166,13 +199,7 @@ class _ImageWeatherInputScreenState extends State<ImageWeatherInputScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
-                        "Predict Disease",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      child: const Text("Predict Disease"),
                     ),
                   ),
                 ],

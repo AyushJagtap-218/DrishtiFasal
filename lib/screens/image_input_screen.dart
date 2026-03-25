@@ -13,15 +13,11 @@ class ImageInputScreen extends StatefulWidget {
 class _ImageInputScreenState extends State<ImageInputScreen> {
 
   File? selectedImage;
-
   final ImagePicker picker = ImagePicker();
 
-  // Pick Image
-  Future pickImage() async {
-
-    final pickedFile = await picker.pickImage(
-      source: ImageSource.gallery,
-    );
+  // 📁 Pick from Gallery
+  Future pickFromGallery() async {
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
     if (pickedFile != null) {
       setState(() {
@@ -30,14 +26,52 @@ class _ImageInputScreenState extends State<ImageInputScreen> {
     }
   }
 
-  // Navigate to Loading Screen
-  void predictDisease() {
+  // 📷 Pick from Camera
+  Future pickFromCamera() async {
+    final pickedFile = await picker.pickImage(source: ImageSource.camera);
 
+    if (pickedFile != null) {
+      setState(() {
+        selectedImage = File(pickedFile.path);
+      });
+    }
+  }
+
+  // 🔥 Bottom Sheet Selector
+  void showImageSourceSelector() {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo),
+                title: const Text("Gallery"),
+                onTap: () {
+                  Navigator.pop(context);
+                  pickFromGallery();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text("Camera"),
+                onTap: () {
+                  Navigator.pop(context);
+                  pickFromCamera();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void predictDisease() {
     if (selectedImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Please upload a crop image first"),
-        ),
+        const SnackBar(content: Text("Please upload a crop image first")),
       );
       return;
     }
@@ -54,93 +88,58 @@ class _ImageInputScreenState extends State<ImageInputScreen> {
   Widget build(BuildContext context) {
 
     return Scaffold(
-
-      appBar: AppBar(
-        title: const Text("Image Based Detection"),
-      ),
+      appBar: AppBar(title: const Text("Image Based Detection")),
 
       body: Padding(
         padding: const EdgeInsets.all(20),
-
         child: Column(
           children: [
 
             const SizedBox(height: 20),
 
-            // Upload Image Box
             GestureDetector(
-              onTap: pickImage,
+              onTap: showImageSourceSelector, // 🔥 UPDATED
 
               child: Container(
                 height: 220,
                 width: double.infinity,
-
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(15),
-                  border: Border.all(
-                    color: Colors.green,
-                    width: 2,
-                  ),
+                  border: Border.all(color: Colors.green, width: 2),
                 ),
 
                 child: selectedImage == null
                     ? Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: const [
-
-                          Icon(
-                            Icons.add_a_photo,
-                            size: 50,
-                            color: Colors.green,
-                          ),
-
+                          Icon(Icons.add_a_photo, size: 50, color: Colors.green),
                           SizedBox(height: 10),
-
-                          Text(
-                            "Tap to Upload Crop Image",
-                            style: TextStyle(
-                              fontSize: 16,
-                            ),
-                          ),
+                          Text("Tap to Upload Crop Image"),
                         ],
                       )
                     : ClipRRect(
                         borderRadius: BorderRadius.circular(15),
-                        child: Image.file(
-                          selectedImage!,
-                          fit: BoxFit.cover,
-                        ),
+                        child: Image.file(selectedImage!, fit: BoxFit.cover),
                       ),
               ),
             ),
 
             const SizedBox(height: 40),
 
-            // Predict Button
             SizedBox(
               width: double.infinity,
               height: 50,
-
               child: ElevatedButton(
                 onPressed: predictDisease,
-
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-
-                child: const Text(
-                  "Predict Disease",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                child: const Text("Predict Disease"),
               ),
             ),
-
           ],
         ),
       ),
