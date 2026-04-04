@@ -1,13 +1,26 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
 import 'dart:io';
+import '../services/model_service.dart';
 import 'result_screen.dart';
 
 class LoadingScreen extends StatefulWidget {
 
   final File? image;
+  final double? temperature;
+  final double? humidity;
+  final double? rainfall;
 
-  const LoadingScreen({super.key, this.image});
+  // ✅ UPDATED: cropStage as STRING
+  final String? cropStage;
+
+  const LoadingScreen({
+    super.key,
+    this.image,
+    this.temperature,
+    this.humidity,
+    this.rainfall,
+    this.cropStage,
+  });
 
   @override
   State<LoadingScreen> createState() => _LoadingScreenState();
@@ -19,7 +32,9 @@ class _LoadingScreenState extends State<LoadingScreen>
   late AnimationController _controller;
   late Animation<double> _animation;
 
-  String message = "Analyzing Crop Image...";
+  String message = "Loading AI Model...";
+
+  final ModelService modelService = ModelService();
 
   @override
   void initState() {
@@ -32,33 +47,45 @@ class _LoadingScreenState extends State<LoadingScreen>
 
     _animation = Tween<double>(begin: 0.9, end: 1.2).animate(_controller);
 
-    _simulateProcessing();
+    runModel();
   }
 
-  void _simulateProcessing() {
+  Future<void> runModel() async {
+    try {
+      setState(() => message = "Initializing Model...");
+      await modelService.loadModel();
 
-    Future.delayed(const Duration(seconds: 2), () {
-      setState(() {
-        message = "Running AI Model...";
-      });
-    });
+      setState(() => message = "Processing Data...");
 
-    Future.delayed(const Duration(seconds: 4), () {
-      setState(() {
-        message = "Detecting Disease Patterns...";
-      });
-    });
+      final result = modelService.predict(
+        image: widget.image,
+        temperature: widget.temperature,
+        humidity: widget.humidity,
+        rainfall: widget.rainfall,
+        cropStage: widget.cropStage, // ✅ STRING
+      );
 
-    Future.delayed(const Duration(seconds: 6), () {
+      setState(() => message = "Finalizing Results...");
+
+      await Future.delayed(const Duration(seconds: 1));
 
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => ResultScreen(image: widget.image),
+          builder: (_) => ResultScreen(
+            image: widget.image,
+            result: result,
+          ),
         ),
       );
 
-    });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+
+      Navigator.pop(context);
+    }
   }
 
   @override
@@ -72,7 +99,6 @@ class _LoadingScreenState extends State<LoadingScreen>
 
     return Scaffold(
       body: Container(
-
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [Color(0xFF2E7D32), Color(0xFF66BB6A)],
@@ -80,7 +106,6 @@ class _LoadingScreenState extends State<LoadingScreen>
             end: Alignment.bottomCenter,
           ),
         ),
-
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -119,7 +144,6 @@ class _LoadingScreenState extends State<LoadingScreen>
                   ),
                 ),
               ),
-
             ],
           ),
         ),

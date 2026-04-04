@@ -18,6 +18,16 @@ class _WeatherInputScreenState extends State<WeatherInputScreen> {
 
   bool isLoading = true;
 
+  final List<String> cropStages = [
+    "Flowering",
+    "Fruiting",
+    "Maturity",
+    "Seedling",
+    "Vegetative"
+  ];
+
+  String? selectedStage;
+
   @override
   void initState() {
     super.initState();
@@ -57,10 +67,11 @@ class _WeatherInputScreenState extends State<WeatherInputScreen> {
   void predictDisease() {
     if (temperature.text.isEmpty ||
         humidity.text.isEmpty ||
-        rainfall.text.isEmpty) {
+        rainfall.text.isEmpty ||
+        selectedStage == null) {
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter all weather details")),
+        const SnackBar(content: Text("Please complete all inputs")),
       );
       return;
     }
@@ -68,7 +79,12 @@ class _WeatherInputScreenState extends State<WeatherInputScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => const LoadingScreen(),
+        builder: (_) => LoadingScreen(
+          temperature: double.parse(temperature.text),
+          humidity: double.parse(humidity.text),
+          rainfall: double.parse(rainfall.text),
+          cropStage: selectedStage!,
+        ),
       ),
     );
   }
@@ -86,6 +102,7 @@ class _WeatherInputScreenState extends State<WeatherInputScreen> {
         decoration: InputDecoration(
           prefixIcon: Icon(icon, color: Colors.green),
           labelText: label,
+          contentPadding: const EdgeInsets.symmetric(vertical: 16),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -108,25 +125,60 @@ class _WeatherInputScreenState extends State<WeatherInputScreen> {
               child: Column(
                 children: [
 
-                  weatherField(
-                    Icons.thermostat,
-                    "Temperature (°C)",
-                    temperature,
+                  /// 🔥 WARNING BOX
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade100,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Text(
+                      "⚠️ Predictions using only weather data may be less accurate.\n"
+                      "For best results, use Image + Weather mode.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 14),
+                    ),
                   ),
 
-                  weatherField(
-                    Icons.water_drop,
-                    "Humidity (%)",
-                    humidity,
+                  const SizedBox(height: 20),
+
+                  weatherField(Icons.thermostat, "Temperature (°C)", temperature),
+                  weatherField(Icons.water_drop, "Humidity (%)", humidity),
+                  weatherField(Icons.cloud, "Rainfall (mm)", rainfall),
+
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 18),
+                    child: DropdownButtonFormField<String>(
+                      value: selectedStage,
+                      isExpanded: true,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.black,
+                      ),
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.eco, color: Colors.green),
+                        labelText: "Crop Stage",
+                        contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      items: cropStages.map((stage) {
+                        return DropdownMenuItem(
+                          value: stage,
+                          child: Text(stage),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          selectedStage = value;
+                        });
+                      },
+                    ),
                   ),
 
-                  weatherField(
-                    Icons.cloud,
-                    "Rainfall (mm)",
-                    rainfall,
-                  ),
-
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 10),
 
                   SizedBox(
                     width: double.infinity,
@@ -139,13 +191,7 @@ class _WeatherInputScreenState extends State<WeatherInputScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
-                        "Predict Disease",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      child: const Text("Predict Disease"),
                     ),
                   ),
                 ],

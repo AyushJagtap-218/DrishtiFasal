@@ -15,7 +15,6 @@ class _ImageInputScreenState extends State<ImageInputScreen> {
   File? selectedImage;
   final ImagePicker picker = ImagePicker();
 
-  // 📁 Pick from Gallery
   Future pickFromGallery() async {
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
@@ -26,7 +25,6 @@ class _ImageInputScreenState extends State<ImageInputScreen> {
     }
   }
 
-  // 📷 Pick from Camera
   Future pickFromCamera() async {
     final pickedFile = await picker.pickImage(source: ImageSource.camera);
 
@@ -37,7 +35,6 @@ class _ImageInputScreenState extends State<ImageInputScreen> {
     }
   }
 
-  // 🔥 Bottom Sheet Selector
   void showImageSourceSelector() {
     showModalBottomSheet(
       context: context,
@@ -79,7 +76,9 @@ class _ImageInputScreenState extends State<ImageInputScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => LoadingScreen(image: selectedImage!),
+        builder: (_) => LoadingScreen(
+          image: selectedImage!,
+        ),
       ),
     );
   }
@@ -95,10 +94,28 @@ class _ImageInputScreenState extends State<ImageInputScreen> {
         child: Column(
           children: [
 
+            const SizedBox(height: 10),
+
+            /// 🔥 WARNING BOX
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade100,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Text(
+                "⚠️ Predictions using only image may be less accurate.\n"
+                "For best results, use Image + Weather mode.",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14),
+              ),
+            ),
+
             const SizedBox(height: 20),
 
             GestureDetector(
-              onTap: showImageSourceSelector, // 🔥 UPDATED
+              onTap: showImageSourceSelector,
 
               child: Container(
                 height: 220,

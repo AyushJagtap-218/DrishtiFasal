@@ -9,18 +9,31 @@ class ImageWeatherInputScreen extends StatefulWidget {
   const ImageWeatherInputScreen({super.key});
 
   @override
-  State<ImageWeatherInputScreen> createState() => _ImageWeatherInputScreenState();
+  State<ImageWeatherInputScreen> createState() =>
+      _ImageWeatherInputScreenState();
 }
 
-class _ImageWeatherInputScreenState extends State<ImageWeatherInputScreen> {
+class _ImageWeatherInputScreenState
+    extends State<ImageWeatherInputScreen> {
 
   File? selectedImage;
   final ImagePicker picker = ImagePicker();
 
   final TextEditingController temperature = TextEditingController();
   final TextEditingController humidity = TextEditingController();
+  final TextEditingController rainfall = TextEditingController();
 
   bool isLoading = true;
+
+  final List<String> cropStages = [
+    "Flowering",
+    "Fruiting",
+    "Maturity",
+    "Seedling",
+    "Vegetative"
+  ];
+
+  String? selectedStage;
 
   @override
   void initState() {
@@ -43,6 +56,10 @@ class _ImageWeatherInputScreenState extends State<ImageWeatherInputScreen> {
       temperature.text = data['main']['temp'].toString();
       humidity.text = data['main']['humidity'].toString();
 
+      rainfall.text = data['rain'] != null
+          ? (data['rain']['1h'] ?? 0.0).toString()
+          : "0.0";
+
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error fetching weather: $e")),
@@ -54,10 +71,8 @@ class _ImageWeatherInputScreenState extends State<ImageWeatherInputScreen> {
     });
   }
 
-  // 📁 Gallery
   Future pickFromGallery() async {
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-
     if (pickedFile != null) {
       setState(() {
         selectedImage = File(pickedFile.path);
@@ -65,10 +80,8 @@ class _ImageWeatherInputScreenState extends State<ImageWeatherInputScreen> {
     }
   }
 
-  // 📷 Camera
   Future pickFromCamera() async {
     final pickedFile = await picker.pickImage(source: ImageSource.camera);
-
     if (pickedFile != null) {
       setState(() {
         selectedImage = File(pickedFile.path);
@@ -76,7 +89,6 @@ class _ImageWeatherInputScreenState extends State<ImageWeatherInputScreen> {
     }
   }
 
-  // 🔥 Bottom Sheet
   void showImageSourceSelector() {
     showModalBottomSheet(
       context: context,
@@ -110,7 +122,9 @@ class _ImageWeatherInputScreenState extends State<ImageWeatherInputScreen> {
   void predictDisease() {
     if (selectedImage == null ||
         temperature.text.isEmpty ||
-        humidity.text.isEmpty) {
+        humidity.text.isEmpty ||
+        rainfall.text.isEmpty ||
+        selectedStage == null) {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please complete all inputs")),
@@ -121,12 +135,22 @@ class _ImageWeatherInputScreenState extends State<ImageWeatherInputScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => LoadingScreen(image: selectedImage!),
+        builder: (_) => LoadingScreen(
+          image: selectedImage!,
+          temperature: double.parse(temperature.text),
+          humidity: double.parse(humidity.text),
+          rainfall: double.parse(rainfall.text),
+          cropStage: selectedStage!,
+        ),
       ),
     );
   }
 
-  Widget weatherField(IconData icon, String label, TextEditingController controller) {
+  Widget weatherField(
+      IconData icon,
+      String label,
+      TextEditingController controller) {
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 18),
       child: TextField(
@@ -135,6 +159,7 @@ class _ImageWeatherInputScreenState extends State<ImageWeatherInputScreen> {
         decoration: InputDecoration(
           prefixIcon: Icon(icon, color: Colors.green),
           labelText: label,
+          contentPadding: const EdgeInsets.symmetric(vertical: 16),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -157,7 +182,7 @@ class _ImageWeatherInputScreenState extends State<ImageWeatherInputScreen> {
                 children: [
 
                   GestureDetector(
-                    onTap: showImageSourceSelector, // 🔥 UPDATED
+                    onTap: showImageSourceSelector,
                     child: Container(
                       height: 220,
                       width: double.infinity,
@@ -169,14 +194,16 @@ class _ImageWeatherInputScreenState extends State<ImageWeatherInputScreen> {
                           ? Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: const [
-                                Icon(Icons.add_a_photo, size: 50, color: Colors.green),
+                                Icon(Icons.add_a_photo,
+                                    size: 50, color: Colors.green),
                                 SizedBox(height: 10),
                                 Text("Upload Crop Image"),
                               ],
                             )
                           : ClipRRect(
                               borderRadius: BorderRadius.circular(15),
-                              child: Image.file(selectedImage!, fit: BoxFit.cover),
+                              child: Image.file(selectedImage!,
+                                  fit: BoxFit.cover),
                             ),
                     ),
                   ),
@@ -185,8 +212,45 @@ class _ImageWeatherInputScreenState extends State<ImageWeatherInputScreen> {
 
                   weatherField(Icons.thermostat, "Temperature (°C)", temperature),
                   weatherField(Icons.water_drop, "Humidity (%)", humidity),
+                  weatherField(Icons.cloud, "Rainfall (mm)", rainfall),
 
-                  const SizedBox(height: 25),
+                  /// ✅ FIXED DROPDOWN
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 18),
+                    child: DropdownButtonFormField<String>(
+                      value: selectedStage,
+                      isExpanded: true,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.normal,
+                        color: Colors.black,
+                      ),
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.eco, color: Colors.green),
+                        labelText: "Crop Stage",
+                        contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      items: cropStages.map((stage) {
+                        return DropdownMenuItem(
+                          value: stage,
+                          child: Text(
+                            stage,
+                            style: const TextStyle(fontWeight: FontWeight.normal),
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          selectedStage = value;
+                        });
+                      },
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
 
                   SizedBox(
                     width: double.infinity,
