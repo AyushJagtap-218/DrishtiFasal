@@ -3,6 +3,17 @@ import 'dart:math' as Math;
 import 'package:tflite_flutter/tflite_flutter.dart';
 import 'package:image/image.dart' as img;
 
+class NonLeafImageException implements Exception {
+  final String message;
+
+  const NonLeafImageException([
+    this.message = "Please upload a leaf image for accurate prediction.",
+  ]);
+
+  @override
+  String toString() => message;
+}
+
 class ModelService {
   Interpreter? _interpreter;
 
@@ -55,6 +66,9 @@ class ModelService {
     "Vegetative": 4,
   };
 
+  static const double _leafGreenRatioThreshold = 0.12;
+  static const int _leafSamplingStep = 6;
+
   // ✅ WEEK FROM STAGE
   int getWeekFromStage(String stage) {
     switch (stage) {
@@ -104,6 +118,39 @@ class ModelService {
     ];
   }
 
+  bool _isLeafImage(File imageFile) {
+    final decoded = img.decodeImage(imageFile.readAsBytesSync());
+    if (decoded == null) return false;
+
+    int greenPixels = 0;
+    int samples = 0;
+
+    for (int y = 0; y < decoded.height; y += _leafSamplingStep) {
+      for (int x = 0; x < decoded.width; x += _leafSamplingStep) {
+        samples++;
+        final pixel = decoded.getPixel(x, y);
+        final r = pixel.r;
+        final g = pixel.g;
+        final b = pixel.b;
+        final brightness = (r + g + b) / 3.0;
+
+        final isGreenish = g > r * 1.05 &&
+            g > b * 1.05 &&
+            g > 60 &&
+            brightness > 55;
+
+        if (isGreenish) {
+          greenPixels++;
+        }
+      }
+    }
+
+    if (samples == 0) return false;
+
+    final ratio = greenPixels / samples;
+    return ratio >= _leafGreenRatioThreshold;
+  }
+
   // ✅ Softmax
   List<double> softmax(List<double> logits) {
     double maxLogit = logits.reduce((a, b) => a > b ? a : b);
@@ -148,6 +195,10 @@ class ModelService {
 
     // ✅ IMAGE INPUT (ALWAYS REQUIRED)
     if (image != null) {
+      if (!_isLeafImage(image)) {
+        throw const NonLeafImageException();
+      }
+
       inputs.add(preprocessImage(image));
     } else {
       // 🔥 Dummy black image

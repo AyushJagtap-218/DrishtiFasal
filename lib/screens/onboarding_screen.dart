@@ -39,7 +39,8 @@ class OnboardingScreen extends StatelessWidget {
         PageViewModel(
           title: "Smart Crop Analysis",
           body:
-              "Analyze crops using image-based detection, weather-based prediction, or hybrid AI analysis.",
+              // "Analyze crops using image-based detection, weather-based prediction, or hybrid AI analysis.",
+              "Analyze crops using image-based detection or hybrid AI analysis.",
           image: const Icon(
             Icons.camera_alt,
             size: 120,

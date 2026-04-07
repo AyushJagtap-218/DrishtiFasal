@@ -11,6 +11,8 @@ dependencies:
   flutter:
     sdk: flutter
 
+  csv: ^5.0.0
+
   cupertino_icons: ^1.0.8
 
   # ✅ Image + ML
@@ -44,3 +46,4 @@ flutter:
     - .env
     - assets/models/hybrid_model_float32.tflite
     - assets/images/
+    - assets/data/crop_stage_disease_mapping.csv

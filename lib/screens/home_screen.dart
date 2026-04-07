@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'image_input_screen.dart';
-import 'weather_input_screen.dart';
+// import 'weather_input_screen.dart';
 import 'image_weather_input_screen.dart';
 import 'about_screen.dart';
 
@@ -110,15 +110,15 @@ class HomeScreen extends StatelessWidget {
 
                           const SizedBox(height: 20),
 
-                          _buildOptionCard(
-                            context,
-                            icon: Icons.cloud,
-                            title: "Weather Only",
-                            subtitle: "Predict using weather conditions",
-                            screen: const WeatherInputScreen(),
-                          ),
+                          // _buildOptionCard(
+                          //   context,
+                          //   icon: Icons.cloud,
+                          //   title: "Weather Only",
+                          //   subtitle: "Predict using weather conditions",
+                          //   screen: const WeatherInputScreen(),
+                          // ),
 
-                          const SizedBox(height: 20),
+                          // const SizedBox(height: 20),
 
                           _buildOptionCard(
                             context,

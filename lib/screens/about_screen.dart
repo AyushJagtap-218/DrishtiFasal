@@ -68,16 +68,16 @@ class AboutScreen extends StatelessWidget {
                   "Upload crop leaf images to detect plant diseases using deep learning models.",
             ),
 
-            const SizedBox(height: 15),
+            // const SizedBox(height: 15),
 
-            _featureCard(
-              icon: Icons.cloud,
-              title: "Weather-Based Prediction",
-              description:
-                  "Analyze environmental conditions such as temperature and humidity to predict pest risks.",
-            ),
+            // _featureCard(
+            //   icon: Icons.cloud,
+            //   title: "Weather-Based Prediction",
+            //   description:
+            //       "Analyze environmental conditions such as temperature and humidity to predict pest risks.",
+            // ),
 
-            const SizedBox(height: 15),
+            // const SizedBox(height: 15),
 
             _featureCard(
               icon: Icons.psychology,
