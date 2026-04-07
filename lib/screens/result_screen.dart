@@ -19,7 +19,9 @@ class ResultScreen extends StatefulWidget {
 
 class _ResultScreenState extends State<ResultScreen> {
   final List<Map<String, String>> csvRows = [];
-  final Map<String, List<Map<String, String>>> diseaseMap = {};
+  final Map<String, List<Map<String, String>>> _diseaseIndex = {};
+  bool _csvLoaded = false;
+  bool _csvLoadFailed = false;
 
   @override
   void initState() {
@@ -57,39 +59,57 @@ class _ResultScreenState extends State<ResultScreen> {
 
   /// ✅ LOAD CSV
   Future<void> loadCsv() async {
-    final rawData = await rootBundle
-        .loadString('assets/data/crop_stage_disease_mapping.csv');
+    try {
+      final rawData = await rootBundle
+          .loadString('assets/data/crop_stage_disease_mapping.csv');
 
-    final rows = const CsvToListConverter(eol: '\n').convert(rawData);
+      final rows = const CsvToListConverter(eol: '\n').convert(rawData);
 
-    final headers = rows.first.map((e) => e.toString()).toList();
+      final headers = rows.first
+          .map((e) => e
+              .toString()
+              .replaceAll('\uFEFF', '')
+              .trim())
+          .toList();
 
-    csvRows.clear();
-    diseaseMap.clear();
-    for (var row in rows.skip(1)) {
-      final map = <String, String>{};
+      csvRows.clear();
+      _diseaseIndex.clear();
+      for (var row in rows.skip(1)) {
+        final map = <String, String>{};
 
-      for (var i = 0; i < headers.length; i++) {
-        map[headers[i]] =
-            row.length > i ? row[i].toString() : "";
+        for (var i = 0; i < headers.length; i++) {
+          map[headers[i]] =
+              row.length > i ? row[i].toString() : "";
+        }
+
+        map['_normalizedCrop'] = normalize(map['Crop'] ?? "");
+        map['_normalizedDisease'] =
+            normalize(map['Disease'] ?? "");
+        map['_normalizedStage'] =
+            normalize(map['Crop_Stage'] ?? "");
+        map['_rawDisease'] = map['Disease']?.toString().trim() ?? "";
+
+        final normalizedDisease = map['_normalizedDisease'] ?? "";
+        if (normalizedDisease.isNotEmpty) {
+          _diseaseIndex
+              .putIfAbsent(normalizedDisease, () => [])
+              .add(map);
+        }
+
+        csvRows.add(map);
       }
 
-      map['_normalizedCrop'] = normalize(map['Crop'] ?? "");
-      map['_normalizedDisease'] =
-          normalize(map['Disease'] ?? "");
-      map['_normalizedStage'] =
-          normalize(map['Crop_Stage'] ?? "");
-
-      final normalizedDisease = map['_normalizedDisease'] ?? "";
-      if (normalizedDisease.isNotEmpty) {
-        diseaseMap.putIfAbsent(normalizedDisease, () => []).add(map);
-      }
-
-      csvRows.add(map);
+      print(
+          "✅ CSV Loaded: ${csvRows.length} rows, ${_diseaseIndex.length} disease keys");
+      _csvLoaded = true;
+      _csvLoadFailed = false;
+    } catch (e) {
+      print("❌ CSV load failed: $e");
+      _csvLoadFailed = true;
+      _csvLoaded = false;
+    } finally {
+      if (mounted) setState(() {});
     }
-
-    print("✅ CSV Loaded: ${csvRows.length}");
-    setState(() {});
   }
 
   /// ✅ SPLIT "|" VALUES
@@ -103,13 +123,104 @@ class _ResultScreenState extends State<ResultScreen> {
         .toList();
   }
 
+  List<Map<String, String>> _findRowsForDisease(String normalizedDisease) {
+    if (normalizedDisease.isEmpty) return [];
+
+    final direct = _diseaseIndex[normalizedDisease];
+    if (direct != null && direct.isNotEmpty) return direct;
+
+    final inputWords = normalizedDisease
+        .split(' ')
+        .map((word) => word.trim())
+        .where((word) => word.isNotEmpty)
+        .toList();
+    final threshold = inputWords.length <= 1 ? 1 : inputWords.length - 1;
+
+    String? bestKey;
+    int bestScore = -1;
+
+    for (var entry in _diseaseIndex.entries) {
+      final key = entry.key;
+
+      if (key.contains(normalizedDisease) ||
+          normalizedDisease.contains(key)) {
+        return entry.value;
+      }
+
+      if (inputWords.isEmpty || key.isEmpty) continue;
+
+      final keyWords = key
+          .split(' ')
+          .map((word) => word.trim())
+          .where((word) => word.isNotEmpty)
+          .toSet();
+
+      final matchCount = inputWords
+          .where((word) => keyWords.contains(word))
+          .length;
+
+      if (matchCount > bestScore) {
+        bestScore = matchCount;
+        bestKey = entry.key;
+      }
+    }
+
+    if (bestKey != null && bestScore >= threshold) {
+      return _diseaseIndex[bestKey] ?? [];
+    }
+
+    return [];
+  }
+
+  Map<String, String> _selectRowForStage(
+      List<Map<String, String>> matches, String normalizedStage) {
+    if (matches.isEmpty) return {};
+    if (normalizedStage.isEmpty) return matches.first;
+
+    for (var candidate in matches) {
+      final csvStage = candidate['_normalizedStage'] ?? "";
+      if (csvStage.isNotEmpty &&
+          (csvStage.contains(normalizedStage) ||
+              normalizedStage.contains(csvStage))) {
+        return candidate;
+      }
+    }
+
+    return matches.first;
+  }
+
   /// ✅ FINAL MATCHING LOGIC (FIXED)
   Map<String, String> getSuggestion() {
-    if (csvRows.isEmpty) {
+    if (!_csvLoaded && !_csvLoadFailed) {
       return {
         'Treatment': "Loading...",
         'Prevention': "Loading...",
         'Symptoms': "Loading...",
+        'Crop': "",
+        'isHealthy': "false",
+        'loading': "true",
+      };
+    }
+
+    if (_csvLoadFailed) {
+      return {
+        'Treatment': "Consult agricultural expert for treatment.",
+        'Prevention': "Consult agricultural expert for prevention.",
+        'Symptoms': "Symptoms not found in database.",
+        'Crop': "",
+        'isHealthy': "false",
+      };
+    }
+
+    return _buildSuggestion();
+  }
+
+  Map<String, String> _buildSuggestion() {
+    if (csvRows.isEmpty) {
+      return {
+        'Treatment': "Consult agricultural expert for treatment.",
+        'Prevention': "Consult agricultural expert for prevention.",
+        'Symptoms': "Symptoms not found in database.",
         'Crop': "",
         'isHealthy': "false",
       };
@@ -117,8 +228,7 @@ class _ResultScreenState extends State<ResultScreen> {
 
     final rawDiseaseLabel =
         widget.result["label"]?.toString().trim() ?? "";
-    final normalizedDisease =
-        normalize(rawDiseaseLabel);
+    final normalizedDisease = normalize(rawDiseaseLabel);
 
     final normalizedStage =
         normalize(widget.result["crop_stage"]?.toString() ?? "");
@@ -133,60 +243,41 @@ class _ResultScreenState extends State<ResultScreen> {
       };
     }
 
-    print("========== DEBUG ==========");
-    print("Disease: $normalizedDisease");
-    print("Stage: $normalizedStage");
-    print("===========================");
+    final matchesRaw = _findRowsForDisease(normalizedDisease);
+    final rawLabelKey = rawDiseaseLabel.toLowerCase();
 
-    bool diseaseMatches(String csvDisease, String inputDisease) {
-      if (csvDisease.contains(inputDisease) ||
-          inputDisease.contains(csvDisease)) {
-        return true;
-      }
+    final matches = matchesRaw.isNotEmpty
+        ? matchesRaw
+        : csvRows.where((row) {
+            final raw = row['_rawDisease']?.toLowerCase() ?? "";
+            return raw == rawLabelKey && rawLabelKey.isNotEmpty;
+          }).toList();
 
-      final csvWords = csvDisease.split(' ').toSet();
-      final inputWords = inputDisease.split(' ').toSet();
-
-      int matchCount =
-          inputWords.where((word) => csvWords.contains(word)).length;
-
-      return matchCount >= inputWords.length - 1;
-    }
-
-    List<Map<String, String>> candidates = [];
-    if (normalizedDisease.isNotEmpty) {
-      candidates = diseaseMap[normalizedDisease] ?? [];
-    }
-
-    if (candidates.isEmpty) {
-      candidates = csvRows.where((row) {
-        final csvDisease = row['_normalizedDisease'] ?? "";
-        return diseaseMatches(csvDisease, normalizedDisease);
-      }).toList();
-    }
-
-    if (candidates.isEmpty) {
-      print("❌ NO MATCH FOUND → fallback");
+    if (matches.isEmpty) {
+      print("Normalized lookup failed for: $normalizedDisease");
+      print("Available disease keys: ${_diseaseIndex.keys.join(', ')}");
+      print(
+          "❌ NO MATCH FOUND → fallback (raw label: $rawDiseaseLabel, stage: $normalizedStage)");
       return {
         'Treatment': "Consult agricultural expert for treatment.",
         'Prevention': "Consult agricultural expert for prevention.",
-      'Symptoms': "Symptoms not found in database.",
-      'Crop': "",
-      'isHealthy': "false",
-    };
-  }
-
-    Map<String, String>? stageMatchRow;
-
-    for (var candidate in candidates) {
-      final csvStage = candidate['_normalizedStage'] ?? "";
-      if (normalizedStage.isEmpty || csvStage.contains(normalizedStage)) {
-        stageMatchRow = candidate;
-        break;
-      }
+        'Symptoms': "Symptoms not found in database.",
+        'Crop': "",
+        'isHealthy': "false",
+      };
     }
 
-    final selectedRow = stageMatchRow ?? candidates.first;
+    final selectedRow = _selectRowForStage(matches, normalizedStage);
+
+    if (selectedRow.isEmpty) {
+      return {
+        'Treatment': "Consult agricultural expert for treatment.",
+        'Prevention': "Consult agricultural expert for prevention.",
+        'Symptoms': "Symptoms not found in database.",
+        'Crop': "",
+        'isHealthy': "false",
+      };
+    }
 
     final treatment = getValue(selectedRow, "Treatment");
     final prevention = getValue(selectedRow, "Prevention");
@@ -216,6 +307,8 @@ class _ResultScreenState extends State<ResultScreen> {
     final diseaseRaw = widget.result["label"] ?? "Unknown";
     final detectedCrop = suggestion['Crop']?.toString().trim() ?? "";
     final isHealthy = suggestion['isHealthy'] == "true";
+    final showLoadingSuggestions = !_csvLoaded && !_csvLoadFailed;
+    final suggestionError = _csvLoadFailed;
 
     final treatmentList = isHealthy
         ? <String>[]
@@ -361,7 +454,41 @@ class _ResultScreenState extends State<ResultScreen> {
                 const SizedBox(height: 20),
               ],
 
-              if (!isHealthy) ...[
+              if (showLoadingSuggestions) ...[
+                const Text(
+                  "Loading Crop Suggestions...",
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(15),
+                    child: const Text(
+                      "Fetching crop information from the offline database...",
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ),
+              ] else if (suggestionError) ...[
+                const Text(
+                  "Suggestions unavailable",
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(15),
+                    child: const Text(
+                      "Could not load the CSV data. Please restart the app.",
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ),
+              ] else if (!isHealthy) ...[
                 const Text(
                   "Recommended Treatment",
                   style: TextStyle(
