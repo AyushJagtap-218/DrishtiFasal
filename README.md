@@ -1,6 +1,6 @@
 # DrishtiFasal (Android)
 
-DrishtiFasal is an offline-first Flutter application that diagnoses crop diseases using a hybrid TensorFlow Lite model plus contextual data stored in a CSV. The app currently targets Android only; run it on an Android device or emulator to get disease, crop, and recommendation insights without relying on a backend.
+DrishtiFasal is an offline Flutter application that diagnoses crop diseases using a hybrid TensorFlow Lite model plus contextual data stored in a CSV. The app currently targets Android only; run it on an Android device or emulator to get disease, crop, and recommendation insights without relying on a backend.
 
 ## What the app does
 
