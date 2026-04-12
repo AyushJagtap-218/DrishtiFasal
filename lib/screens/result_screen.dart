@@ -20,6 +20,7 @@ class ResultScreen extends StatefulWidget {
 class _ResultScreenState extends State<ResultScreen> {
   final List<Map<String, String>> csvRows = [];
   final Map<String, List<Map<String, String>>> _diseaseIndex = {};
+  final Map<String, List<Map<String, String>>> _rawDiseaseIndex = {};
   bool _csvLoaded = false;
   bool _csvLoadFailed = false;
 
@@ -63,7 +64,9 @@ class _ResultScreenState extends State<ResultScreen> {
       final rawData = await rootBundle
           .loadString('assets/data/crop_stage_disease_mapping.csv');
 
-      final rows = const CsvToListConverter(eol: '\n').convert(rawData);
+      final normalizedCsv = rawData.replaceAll('\r\n', '\n');
+      final rows =
+          const CsvToListConverter(eol: '\n').convert(normalizedCsv);
 
       final headers = rows.first
           .map((e) => e
@@ -93,6 +96,13 @@ class _ResultScreenState extends State<ResultScreen> {
         if (normalizedDisease.isNotEmpty) {
           _diseaseIndex
               .putIfAbsent(normalizedDisease, () => [])
+              .add(map);
+        }
+
+        final rawDiseaseKey = map['_rawDisease']?.toLowerCase() ?? "";
+        if (rawDiseaseKey.isNotEmpty) {
+          _rawDiseaseIndex
+              .putIfAbsent(rawDiseaseKey, () => [])
               .add(map);
         }
 
@@ -248,10 +258,7 @@ class _ResultScreenState extends State<ResultScreen> {
 
     final matches = matchesRaw.isNotEmpty
         ? matchesRaw
-        : csvRows.where((row) {
-            final raw = row['_rawDisease']?.toLowerCase() ?? "";
-            return raw == rawLabelKey && rawLabelKey.isNotEmpty;
-          }).toList();
+        : (_rawDiseaseIndex[rawLabelKey] ?? []);
 
     if (matches.isEmpty) {
       print("Normalized lookup failed for: $normalizedDisease");
